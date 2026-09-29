@@ -32,16 +32,27 @@ The whole app sits behind its own login page (`/unlock`). Every page and API rou
 
 ## Run with Docker
 
+Images are published to the GitHub Container Registry at **`ghcr.io/m4ary/byelatter`**.
+
 ```bash
 cp .env.example .env         # set ADMIN_PASSWORD (and SESSION_SECRET)
-docker compose up -d --build
+docker compose up -d         # pulls ghcr.io/m4ary/byelatter:latest
 ```
 
-Open http://localhost:3000. Or run it without Compose:
+Open http://localhost:3000.
+
+To pin a version, set `BYELATTER_VERSION=0.2.0` in `.env` (or `0.2` for the latest patch, or `edge` for the latest `main` build). To upgrade, run `docker compose pull && docker compose up -d`.
+
+To build from source instead of pulling:
 
 ```bash
-docker build -t byelatter .
-docker run -d -p 3000:3000 -e ADMIN_PASSWORD=change-me -e SESSION_SECRET=$(openssl rand -hex 32) -e COOKIE_SECURE=false byelatter
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
+
+Or run it without Compose:
+
+```bash
+docker run -d -p 3000:3000 -e ADMIN_PASSWORD=change-me -e SESSION_SECRET=$(openssl rand -hex 32) -e COOKIE_SECURE=false ghcr.io/m4ary/byelatter:latest
 ```
 
 The image uses Next.js `standalone` output on `node:22-alpine` and runs as a non-root user. Behind an HTTPS reverse proxy, set `COOKIE_SECURE=true`.
@@ -57,6 +68,27 @@ npm run dev
 ```
 
 Open http://localhost:3000.
+
+## Versioning and releases
+
+Byelatter follows [Semantic Versioning](https://semver.org). The `version` in `package.json` is the single source of truth. It appears in the app footer and must match the git tag `vX.Y.Z` of every release.
+
+To cut a release, do one of these:
+
+- **From GitHub:** go to **Actions → Release → Run workflow** and pick `patch`, `minor` or `major`. The workflow bumps `package.json`, commits and tags on `main`, publishes the image, and creates a GitHub release with generated notes.
+- **Locally:** run `npm run release:patch` (or `release:minor` / `release:major`). This runs `npm version`, then pushes the commit and tag, which triggers the publish workflow.
+
+The **Docker image** workflow (`.github/workflows/docker-publish.yml`) builds `linux/amd64` and `linux/arm64` and pushes these tags:
+
+| Trigger | Tags |
+| --- | --- |
+| Release `v1.4.2` | `1.4.2`, `1.4`, `1`, `latest` (`1` is skipped for `0.x` versions) |
+| Push to `main` | `edge`, `sha-<short>` |
+| Pull request | built only, not pushed |
+
+The workflow fails if a tag doesn't match `package.json`. Record notable changes in [CHANGELOG.md](CHANGELOG.md).
+
+A package published to GHCR for the first time is private. To let `docker compose` pull it without logging in, open the package on GitHub and set **Package settings → Change visibility → Public**. If `main` is branch-protected, allow GitHub Actions to push to it, or use the local release scripts.
 
 ### App passwords
 
@@ -90,4 +122,5 @@ src/app/unlock           Admin login page
 src/app/api/*            Route handlers: unlock, lock, login, logout, session, mailboxes, newsletters, unsubscribe
 src/components/*         Unlock form, mailbox login form, newsletter list (client components)
 Dockerfile               Multi-stage production image
+.github/workflows        Docker image publishing and release automation
 ```
