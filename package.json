@@ -2,6 +2,12 @@
   "name": "byeletter",
   "version": "1.2.0",
   "private": true,
+  "license": "MIT",
+  "description": "Self-hosted dashboard to find newsletters in your IMAP/POP3 mailboxes and unsubscribe in one click",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/m4ary/byeletter"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -31,5 +37,8 @@
     "eslint-config-next": "16.3.7",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22.13"
   }
 }

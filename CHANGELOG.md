@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- MIT license, contributing guide, security policy and a README screenshot.
+
 ## [1.2.0] - 2026-09-29
 
 ### Removed

@@ -1,7 +1,7 @@
 services:
   byeletter:
     # Published by .github/workflows/docker-publish.yml.
-    # Pin a release with BYELETTER_VERSION=1.2.3 (or 1.2, edge); defaults to latest.
+    # Pin a release with BYELETTER_VERSION=1.2.0 (or 1.2, or 1); defaults to latest.
     image: ghcr.io/m4ary/byeletter:${BYELETTER_VERSION:-latest}
     container_name: byeletter
     ports:

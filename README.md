@@ -4,113 +4,123 @@
 
 <h1 align="center">Byeletter</h1>
 
-A self-hosted dashboard that connects to all your mailboxes over **IMAP** or **POP3**, finds every newsletter you receive, and unsubscribes you in one click.
+<p align="center">
+  Find every newsletter in all your mailboxes and unsubscribe in one click.<br>
+  Self-hosted, works with any IMAP or POP3 account, and your mail never leaves your server.
+</p>
+
+<p align="center">
+  <a href="https://github.com/m4ary/byeletter/releases"><img src="https://img.shields.io/github/v/release/m4ary/byeletter" alt="Latest release"></a>
+  <a href="https://github.com/m4ary/byeletter/pkgs/container/byeletter"><img src="https://img.shields.io/badge/docker-ghcr.io%2Fm4ary%2Fbyeletter-blue?logo=docker&logoColor=white" alt="Docker image"></a>
+  <a href="https://github.com/m4ary/byeletter/actions/workflows/docker-publish.yml"><img src="https://img.shields.io/github/actions/workflow/status/m4ary/byeletter/docker-publish.yml?branch=main" alt="Build status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshot.png" alt="Byeletter dashboard listing newsletters from two mailboxes" width="900">
+</p>
 
 ## Features
 
-- **Multiple mailboxes.** Add as many IMAP or POP3 accounts as you like. Built-in presets cover Gmail, Outlook/Hotmail, Yahoo, iCloud, AOL, Zoho, Yandex, GMX, Mail.com, Fastmail and Proton Mail Bridge, or you can enter your own server settings. The provider is picked automatically from the email domain.
-- **Dashboard.** Totals for mailboxes, newsletters, newsletter emails and unsubscribes, plus a single newsletter list across every mailbox that you can filter by mailbox, status or search text.
-- **Scan everything together, or one mailbox deeply.** Scan all mailboxes at once, or scan a single one. Pick **Inbox** or **All folders** (IMAP) and how many of the newest messages to read per folder (100–5,000). Scans run in the background with live progress, three mailboxes at a time.
-- **All-folder scans** skip Sent and Drafts. When the server has an "All Mail" folder (Gmail), it reads that plus Spam and Trash instead of every label. Messages that appear in several folders are counted once, by `Message-ID`.
-- A newsletter is any message with a `List-Unsubscribe` header. Messages are grouped per mailbox by sender, with a count, the latest subject and date, the folders it was found in, and which unsubscribe methods are available. Only headers are fetched, so scans stay fast.
-- Unsubscribing tries the most automatic method first:
-  1. **One-click** (RFC 8058): a `POST List-Unsubscribe=One-Click` request to the sender's https endpoint.
-  2. **Email**: a `mailto:` unsubscribe sent through your own SMTP server (preset providers include SMTP settings).
-  3. **Manual**: an "Open link" / "Send email" button when the sender needs a confirmation step.
-- Bulk-select senders and unsubscribe from all of them. Unsubscribe results are saved, so you can come back later, mark manual ones as done, or undo.
+- **All your mailboxes in one place.** Add as many IMAP or POP3 accounts as you like. Presets cover Gmail, Outlook/Hotmail, Yahoo, iCloud, AOL, Zoho, Yandex, GMX, Mail.com, Fastmail and Proton Mail Bridge, and any other server works with custom settings.
+- **One dashboard.** See totals and a single newsletter list across every mailbox. Filter it by mailbox, status or search text.
+- **Scan everything, or one mailbox deeply.** Scan all mailboxes together or one at a time, the inbox or every folder, reading the newest 100–5,000 messages per folder. Scans run in the background with live progress.
+- **Smart detection.** Any message with a `List-Unsubscribe` header counts as a newsletter. Messages are grouped by sender, and a message found in several folders (Gmail labels, for example) is counted once. Only headers are downloaded, so scans are fast.
+- **One-click unsubscribe.** Byeletter tries the most automatic method first:
+  1. **One-click** ([RFC 8058](https://www.rfc-editor.org/rfc/rfc8058)): a request to the sender's unsubscribe endpoint.
+  2. **Email**: an unsubscribe email sent from your own account.
+  3. **Manual**: a link to finish on the sender's site, then **Mark done**.
+- **Bulk actions and history.** Select many senders and unsubscribe from them together. Results are saved, so you can come back later or undo.
+- **Private by design.** A password protects the whole app. Mailbox passwords are stored encrypted, and there's no telemetry and no third-party service.
 
-## Admin password
+## Quick start
 
-The whole app sits behind its own login page (`/unlock`). Every page and API route redirects there, or returns `401`, until someone enters the `ADMIN_PASSWORD`. If that variable isn't set, nobody can unlock the app. Use **Lock app** to sign out.
+You need [Docker](https://docs.docker.com/get-docker/) with Compose.
+
+```bash
+curl -O https://raw.githubusercontent.com/m4ary/byeletter/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/m4ary/byeletter/main/.env.example
+# edit .env: set ADMIN_PASSWORD, and SESSION_SECRET (openssl rand -hex 32)
+docker compose up -d
+```
+
+Open http://localhost:3000.
+
+1. **Unlock** the app with your `ADMIN_PASSWORD`.
+2. **Add a mailbox:** enter your email address and the provider is picked for you. Most providers need an [app password](#app-passwords). Byeletter checks the login, saves it encrypted and scans your inbox straight away.
+3. **Scan:** use **Scan all mailboxes** on the dashboard, or scan one mailbox from the **Mailboxes** page. Choose **All folders** to include folders like Promotions or Spam.
+4. **Unsubscribe:** click **Unsubscribe** on a sender, or select several and use **Unsubscribe selected**.
+
+## App passwords
+
+Most big providers don't accept your normal password for IMAP or POP. Create an **app password** and use it instead. The add-mailbox form links to instructions where the provider has them.
+
+| Provider | How |
+| --- | --- |
+| Gmail | Turn on 2-Step Verification, create an [App Password](https://myaccount.google.com/apppasswords), and enable IMAP in Gmail settings |
+| Yahoo / AOL | Account Security → Generate app password |
+| iCloud | IMAP only. Create an app-specific password at [appleid.apple.com](https://appleid.apple.com) |
+| Outlook / Microsoft 365 | Microsoft is removing password logins, so this only works where your account still allows them |
+| Proton Mail | Run [Proton Mail Bridge](https://proton.me/mail/bridge) and use the password it generates (see [Docker notes](#docker-notes)) |
+
+Email unsubscribes are sent through your provider's SMTP server. For custom servers you can add SMTP settings; without them, Byeletter opens the unsubscribe email in your own mail app instead.
 
 ## Configuration
 
+Set these in `.env` (Compose) or as container environment variables.
+
 | Variable | Required | Description |
 | --- | --- | --- |
-| `ADMIN_PASSWORD` | yes | Password for the app's login page |
-| `SESSION_SECRET` | recommended | 32+ random characters (`openssl rand -hex 32`) that encrypt the session cookie **and the saved mailbox passwords**. If unset, the key is derived from `ADMIN_PASSWORD`. Keep it stable: if it changes, saved mailboxes can't be decrypted and must be re-added |
-| `COOKIE_SECURE` | no | `true` makes the cookie HTTPS-only. Defaults to `true` in production; set `false` when you open the app over plain `http://` from another machine |
-| `DATA_DIR` | no | Where the SQLite database lives. Defaults to `./data`; the Docker image uses `/app/data` |
+| `ADMIN_PASSWORD` | yes | Password for the app's login page. If it's not set, nobody can unlock the app |
+| `SESSION_SECRET` | recommended | 32+ random characters (`openssl rand -hex 32`). Encrypts the login cookie **and the saved mailbox passwords**. If unset, a key is derived from `ADMIN_PASSWORD`. Keep it stable: if it changes, saved mailboxes must be added again |
+| `COOKIE_SECURE` | no | `true` makes the login cookie HTTPS-only. Compose sets `false` so plain `http://` works on your network; set `true` behind HTTPS |
+| `PORT` | no | Host port in Compose (default `3000`) |
+| `BYELETTER_VERSION` | no | Image version in Compose (default `latest`) |
+| `DATA_DIR` | no | Where the SQLite database is stored. Defaults to `./data`; the Docker image uses `/app/data` |
 
-## Run with Docker
-
-Images are published to the GitHub Container Registry at **`ghcr.io/m4ary/byeletter`**.
-
-```bash
-cp .env.example .env         # set ADMIN_PASSWORD (and SESSION_SECRET)
-docker compose up -d         # pulls ghcr.io/m4ary/byeletter:latest
-```
-
-Open http://localhost:3000.
-
-To pin a version, set `BYELETTER_VERSION=0.2.0` in `.env` (or `0.2` for the latest patch, or `edge` for the latest `main` build). To upgrade, run `docker compose pull && docker compose up -d`.
-
-To build from source instead of pulling:
+## Updating and backups
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+docker compose pull && docker compose up -d
 ```
 
-Or run it without Compose:
+To stay on a specific release, set `BYELETTER_VERSION` in `.env`: an exact version like `1.2.0`, `1.2` for its latest patch, or `1` for the latest 1.x. The [releases page](https://github.com/m4ary/byeletter/releases) and [CHANGELOG.md](CHANGELOG.md) list what changed.
 
-```bash
-docker run -d -p 3000:3000 -v byeletter-data:/app/data -e ADMIN_PASSWORD=change-me -e SESSION_SECRET=$(openssl rand -hex 32) -e COOKIE_SECURE=false ghcr.io/m4ary/byeletter:latest
-```
+Your mailboxes and scan results live in the `byeletter-data` volume (`/app/data` in the container). Back it up together with your `SESSION_SECRET`, since you need both to read the saved mailboxes.
 
-Your mailboxes and scan results live in the `/app/data` volume (`byeletter-data` in Compose). Back it up together with your `SESSION_SECRET`.
+## Docker notes
 
-The image uses Next.js `standalone` output on `node:22-alpine` and runs as a non-root user. Behind an HTTPS reverse proxy, set `COOKIE_SECURE=true`.
+- Images are published at `ghcr.io/m4ary/byeletter` for `linux/amd64` and `linux/arm64`. They run as a non-root user.
+- **Without Compose:**
+  ```bash
+  docker run -d -p 3000:3000 -v byeletter-data:/app/data \
+    -e ADMIN_PASSWORD=change-me -e SESSION_SECRET=$(openssl rand -hex 32) -e COOKIE_SECURE=false \
+    ghcr.io/m4ary/byeletter:latest
+  ```
+- **Build from source** instead of pulling: `docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build`
+- **Proton Mail Bridge on the same machine:** inside a container, `127.0.0.1` is the container itself. Pick the **Other** provider and use `host.docker.internal` as the server; Compose already maps it to your host.
+- **Behind a reverse proxy with HTTPS:** set `COOKIE_SECURE=true`.
 
-Inside a container, `127.0.0.1` means the container itself. To use Proton Mail Bridge running on the host, pick the **Other** provider and enter `host.docker.internal` (or run the container with `--network host`).
+## Privacy and security
 
-## Local development
+- **Your data stays with you.** Byeletter only talks to your mail servers and, when you unsubscribe, to the sender's unsubscribe link or address. There's no telemetry, account or cloud service.
+- **Mailbox passwords** are checked with a real login, then stored in the local database encrypted with AES-256-GCM. They're never sent back to the browser.
+- **The whole app** is behind `ADMIN_PASSWORD`, with an encrypted, `httpOnly`, `SameSite=Strict` session cookie that expires after 8 hours. Wrong guesses are limited to 10 per IP every 15 minutes.
+- **Unsubscribe links come from untrusted emails**, so one-click requests refuse private and local network addresses and don't follow redirects. Links are always read from the saved scan, never from the browser.
+- Once unlocked, the app can connect to any mail server you enter. Use a strong `ADMIN_PASSWORD`, and put the app behind HTTPS if you expose it to the internet.
 
-```bash
-npm install
-cp .env.example .env.local   # set ADMIN_PASSWORD
-npm run dev
-```
+Found a vulnerability? Please report it privately (best effort, no guarantees); see [SECURITY.md](SECURITY.md).
 
-Open http://localhost:3000.
+## Contributing
 
-### App passwords
+Bug reports, ideas and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to run Byeletter locally (Node.js 22.13 or newer), the project layout, and how releases work.
 
-Most big providers block your normal password for IMAP/POP. Create an **app password** and use that instead. The login form links to each provider's instructions:
+## Disclaimer
 
-| Provider | Notes |
-| --- | --- |
-| Gmail | Turn on 2-Step Verification, create an App Password, and enable IMAP/POP in Gmail settings |
-| Yahoo / AOL | Account Security → Generate app password |
-| iCloud | IMAP only; create an app-specific password at appleid.apple.com |
-| Outlook / Microsoft 365 | Microsoft is removing password (basic) auth, so this only works where your account still allows it |
-| Proton Mail | Run Proton Mail Bridge on the same machine and use the password Bridge generates |
+Byeletter is provided **as is, without warranty of any kind**, and the authors accept no liability for how it's used (see [LICENSE](LICENSE)). You use it at your own risk and are responsible for your installation, the mailboxes you connect, the credentials you store, and following your email providers' terms. There's no guaranteed support or security maintenance.
 
-## Security notes
+Byeletter isn't affiliated with or endorsed by any email provider. Provider names are used only to describe compatibility.
 
-- Mailbox credentials are checked with a real login, then stored in the SQLite database encrypted with AES-256-GCM. The key is derived from `SESSION_SECRET`, or from `ADMIN_PASSWORD` when that isn't set. They're never sent back to the browser.
-- The admin session is an encrypted, `httpOnly`, `SameSite=Strict` cookie ([iron-session](https://github.com/vvo/iron-session)) that expires after 8 hours.
-- Unsubscribe links are read from the saved scan results on the server, never taken from the browser.
-- Unsubscribe URLs come from untrusted email headers. The one-click `POST` checks every address the host resolves to, blocks private, loopback and link-local ranges, and doesn't follow redirects.
-- Only people who know `ADMIN_PASSWORD` can use the app. Wrong guesses are rate-limited to 10 per IP every 15 minutes. Once unlocked, the app can open IMAP/POP connections to any host, so use a strong password and put the app behind HTTPS if you expose it.
+## License
 
-## Project layout
-
-```
-src/lib/providers.ts     Preset IMAP/POP3/SMTP settings for known providers
-src/lib/mail.ts          IMAP (imapflow) and POP3 (node-pop3) login, folder selection and scanning
-src/lib/scanner.ts       Background scan queue with live progress
-src/lib/newsletters.ts   Header parsing (List-Unsubscribe, List-Id, …), Message-ID dedupe, grouping by sender
-src/lib/db.ts            SQLite (node:sqlite) connection and schema
-src/lib/store.ts         Mailboxes, scan results and unsubscribe history
-src/lib/crypto.ts        AES-256-GCM encryption for saved credentials
-src/lib/unsubscribe.ts   One-click POST, mailto via SMTP (nodemailer), manual fallback
-src/lib/safe-fetch.ts    SSRF-guarded HTTP POST
-src/lib/session.ts       Encrypted cookie session and admin password check
-src/proxy.ts             Locks every route behind the admin password
-src/app/unlock           Admin login page
-src/app/(app)            Dashboard, Mailboxes and Add mailbox pages
-src/app/api/*            Route handlers: unlock, lock, accounts, scan, overview, unsubscribe
-src/components/*         Dashboard, newsletter table, mailbox cards and forms (client components)
-Dockerfile               Multi-stage production image
-.github/workflows        Docker image publishing and release automation
-```
+[MIT](LICENSE). Free to use, change and share, with no warranty.
