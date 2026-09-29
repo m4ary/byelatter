@@ -69,27 +69,6 @@ npm run dev
 
 Open http://localhost:3000.
 
-## Versioning and releases
-
-Byelatter follows [Semantic Versioning](https://semver.org). The `version` in `package.json` is the single source of truth. It appears in the app footer and must match the git tag `vX.Y.Z` of every release.
-
-To cut a release, do one of these:
-
-- **From GitHub:** go to **Actions → Release → Run workflow** and pick `patch`, `minor` or `major`. The workflow bumps `package.json`, commits and tags on `main`, publishes the image, and creates a GitHub release with generated notes.
-- **Locally:** run `npm run release:patch` (or `release:minor` / `release:major`). This runs `npm version`, then pushes the commit and tag, which triggers the publish workflow.
-
-The **Docker image** workflow (`.github/workflows/docker-publish.yml`) builds `linux/amd64` and `linux/arm64` and pushes these tags:
-
-| Trigger | Tags |
-| --- | --- |
-| Release `v1.4.2` | `1.4.2`, `1.4`, `1`, `latest` (`1` is skipped for `0.x` versions) |
-| Push to `main` | `edge`, `sha-<short>` |
-| Pull request | built only, not pushed |
-
-The workflow fails if a tag doesn't match `package.json`. Record notable changes in [CHANGELOG.md](CHANGELOG.md).
-
-A package published to GHCR for the first time is private. To let `docker compose` pull it without logging in, open the package on GitHub and set **Package settings → Change visibility → Public**. If `main` is branch-protected, allow GitHub Actions to push to it, or use the local release scripts.
-
 ### App passwords
 
 Most big providers block your normal password for IMAP/POP. Create an **app password** and use that instead. The login form links to each provider's instructions:
