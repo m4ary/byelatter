@@ -1,0 +1,14 @@
+services:
+  byelatter:
+    build: .
+    image: byelatter
+    ports:
+      - "3000:3000"
+    environment:
+      # Required: password for the app's own login page.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env or your shell}
+      # Recommended: 32+ random characters (openssl rand -hex 32).
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      # Set to "true" when served over HTTPS (e.g. behind a reverse proxy).
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    restart: unless-stopped
