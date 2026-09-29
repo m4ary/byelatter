@@ -48,25 +48,33 @@ jobs:
             echo "New version v$VERSION: publishing."
           fi
 
+  # Each platform builds on a native runner (no QEMU emulation, which hangs on `npm ci` for arm64).
+  # Releases push each platform by digest; the merge job then publishes one multi-arch image.
   build:
     needs: version
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
     env:
       RELEASE: ${{ needs.version.outputs.release }}
-      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Image name
+      - name: Prepare
         run: |
-          REPO="${GITHUB_REPOSITORY,,}"
-          echo "IMAGE=${REGISTRY}/${REPO}" >> "$GITHUB_ENV"
+          echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          PLATFORM="${{ matrix.platform }}"
+          echo "PLATFORM_PAIR=${PLATFORM//\//-}" >> "$GITHUB_ENV"
 
-      - uses: docker/setup-qemu-action@v3
-        if: env.RELEASE == 'true'
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
@@ -77,7 +85,69 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Image tags and labels
+      - name: Image labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+
+      - name: Build${{ env.RELEASE == 'true' && ' and push by digest' || ' (check only)' }}
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: ${{ env.RELEASE == 'true' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || 'type=cacheonly' }}
+          cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}
+
+      - name: Export digest
+        if: env.RELEASE == 'true'
+        run: |
+          mkdir -p "${{ runner.temp }}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        if: env.RELEASE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: [version, build]
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Image name
+        run: echo "IMAGE=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -89,20 +159,18 @@ jobs:
             type=semver,pattern={{major}},value=v${{ env.VERSION }},enable=${{ !startsWith(env.VERSION, '0.') }}
             type=raw,value=latest
 
-      - name: Build${{ env.RELEASE == 'true' && ' and push' || ' (check only)' }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          # Releases are multi-arch; check-only builds use one platform to stay fast.
-          platforms: ${{ env.RELEASE == 'true' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
-          push: ${{ env.RELEASE == 'true' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Publish multi-arch image
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "${IMAGE}@sha256:%s " *)
+
+      - name: Inspect image
+        run: docker buildx imagetools inspect "${IMAGE}:${{ steps.meta.outputs.version }}"
 
   release:
-    needs: [version, build]
+    needs: [version, merge]
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
