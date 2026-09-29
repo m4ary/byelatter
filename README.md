@@ -32,11 +32,11 @@ The whole app sits behind its own login page (`/unlock`). Every page and API rou
 
 ## Run with Docker
 
-Images are published to the GitHub Container Registry at **`ghcr.io/m4ary/byelatter`**.
+Images are published to the GitHub Container Registry at **`ghcr.io/m4ary/byeletter`**.
 
 ```bash
 cp .env.example .env         # set ADMIN_PASSWORD (and SESSION_SECRET)
-docker compose up -d         # pulls ghcr.io/m4ary/byelatter:latest
+docker compose up -d         # pulls ghcr.io/m4ary/byeletter:latest
 ```
 
 Open http://localhost:3000.
@@ -52,7 +52,7 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 Or run it without Compose:
 
 ```bash
-docker run -d -p 3000:3000 -e ADMIN_PASSWORD=change-me -e SESSION_SECRET=$(openssl rand -hex 32) -e COOKIE_SECURE=false ghcr.io/m4ary/byelatter:latest
+docker run -d -p 3000:3000 -e ADMIN_PASSWORD=change-me -e SESSION_SECRET=$(openssl rand -hex 32) -e COOKIE_SECURE=false ghcr.io/m4ary/byeletter:latest
 ```
 
 The image uses Next.js `standalone` output on `node:22-alpine` and runs as a non-root user. Behind an HTTPS reverse proxy, set `COOKIE_SECURE=true`.
