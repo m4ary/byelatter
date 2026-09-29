@@ -7,9 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "release:patch": "npm version patch -m \"chore(release): v%s\" && git push --follow-tags",
-    "release:minor": "npm version minor -m \"chore(release): v%s\" && git push --follow-tags",
-    "release:major": "npm version major -m \"chore(release): v%s\" && git push --follow-tags"
+    "bump": "sh scripts/bump.sh"
   },
   "dependencies": {
     "imapflow": "^2.1.2",
