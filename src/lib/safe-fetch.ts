@@ -78,7 +78,7 @@ export function safePost(rawUrl: string, body: string, timeoutMs = 15_000): Prom
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           "Content-Length": Buffer.byteLength(body),
-          "User-Agent": "byelatter/1.0 (+RFC 8058 one-click unsubscribe)",
+          "User-Agent": "byeletter/1.0 (+RFC 8058 one-click unsubscribe)",
         },
       },
       (res) => {

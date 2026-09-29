@@ -8,7 +8,7 @@ export interface SessionData {
   account?: MailAccount;
 }
 
-export const SESSION_COOKIE = "byelatter_session";
+export const SESSION_COOKIE = "byeletter_session";
 export const SESSION_TTL_SECONDS = 60 * 60 * 8;
 
 export function adminPassword(): string | undefined {
@@ -27,7 +27,7 @@ export function sessionPassword(): string {
   if (secret && secret.length >= 32) return secret;
 
   const admin = adminPassword();
-  if (admin) return createHash("sha256").update(`byelatter-session:${admin}`).digest("hex");
+  if (admin) return createHash("sha256").update(`byeletter-session:${admin}`).digest("hex");
 
   // No admin password means nobody can unlock the app, so sessions never matter.
   fallbackSecret ??= randomBytes(32).toString("hex");

@@ -14,7 +14,7 @@ export default async function UnlockPage({ searchParams }: PageProps<"/unlock">)
 
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 py-12">
-      <h1 className="text-3xl font-semibold tracking-tight">Byelatter</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Byeletter</h1>
       <p className="mt-2 text-sm text-neutral-500">This app is private. Enter the admin password to continue.</p>
       <div className="mt-8">
         <UnlockForm next={next} configured={Boolean(adminPassword())} />

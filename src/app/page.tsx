@@ -10,7 +10,7 @@ export default async function Home() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 py-12">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">Byelatter</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Byeletter</h1>
         <LockButton />
       </div>
       <p className="mt-2 text-sm text-neutral-500">

@@ -7,7 +7,7 @@ import LockButton from "./lock-button";
 
 type RowState = { status: "working" } | UnsubscribeOutcome;
 
-const STORAGE_KEY = "byelatter:unsubscribed";
+const STORAGE_KEY = "byeletter:unsubscribed";
 const SCAN_SIZES = [100, 300, 500, 1000, 2000];
 
 function loadDone(): Record<string, string> {
@@ -169,7 +169,7 @@ export default function NewsletterList({
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Byelatter</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Byeletter</h1>
           <p className="text-sm text-neutral-500">
             {email} · {providerName} · {protocol.toUpperCase()}
           </p>

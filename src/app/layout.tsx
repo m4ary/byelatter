@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Byelatter",
+  title: "Byeletter",
   description: "Find the newsletters in your inbox and unsubscribe in one click.",
 };
 
