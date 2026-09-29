@@ -1,11 +1,9 @@
 // Shared by the proxy and route handlers, so it must not import "server-only".
 import { createHash, randomBytes } from "node:crypto";
-import type { MailAccount } from "./types";
 
 export interface SessionData {
   /** Set once the ADMIN_PASSWORD has been entered on /unlock */
   admin?: boolean;
-  account?: MailAccount;
 }
 
 export const SESSION_COOKIE = "byeletter_session";

@@ -10,7 +10,7 @@ import {
   SESSION_TTL_SECONDS,
   type SessionData,
 } from "./auth-config";
-import type { MailAccount } from "./types";
+import { NextResponse } from "next/server";
 
 export type { SessionData };
 
@@ -32,10 +32,9 @@ export async function isAdmin(): Promise<boolean> {
   return Boolean((await getSession()).admin);
 }
 
-/** The signed-in mailbox, only if the app has also been unlocked with the admin password. */
-export async function requireAccount(): Promise<MailAccount | null> {
-  const session = await getSession();
-  return session.admin ? (session.account ?? null) : null;
+/** For route handlers: a 401 response when the app is locked, otherwise null. The proxy checks too. */
+export async function denyUnlessAdmin(): Promise<NextResponse | null> {
+  return (await isAdmin()) ? null : NextResponse.json({ error: "Locked" }, { status: 401 });
 }
 
 export function checkAdminPassword(candidate: string): boolean {

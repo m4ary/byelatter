@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Multiple mailboxes, saved in a SQLite database with AES-256-GCM encrypted credentials.
+- Dashboard with totals and a newsletter list across all mailboxes, filterable by mailbox and status.
+- Scan every mailbox together, or one at a time; IMAP mailboxes can scan all folders.
+- Background scans with live progress; duplicates across folders are counted once by Message-ID.
+- Unsubscribe history is stored on the server, with "mark done" and undo.
+
+### Changed
+- The single-mailbox login is replaced by the Mailboxes page; the Docker image now uses a `/app/data` volume.
+
 ## [0.1.0]
 
 ### Added

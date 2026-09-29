@@ -60,8 +60,9 @@ const DEFAULT_PORTS: Record<Protocol, ServerConfig> = {
   pop3: { host: "", port: 995, secure: true },
 };
 
-export default function LoginForm({ providers }: { providers: Provider[] }) {
+export default function MailboxForm({ providers }: { providers: Provider[] }) {
   const router = useRouter();
+  const [label, setLabel] = useState("");
   const [email, setEmail] = useState("");
   const [providerId, setProviderId] = useState("gmail");
   const [providerTouched, setProviderTouched] = useState(false);
@@ -105,10 +106,11 @@ export default function LoginForm({ providers }: { providers: Provider[] }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/login", {
+      const res = await fetch("/api/accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          label: label || undefined,
           providerId,
           protocol,
           email,
@@ -122,8 +124,8 @@ export default function LoginForm({ providers }: { providers: Provider[] }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Sign in failed");
-      router.push("/newsletters");
+      if (!res.ok) throw new Error(data.error ?? "Could not add mailbox");
+      router.push("/mailboxes");
       router.refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -136,21 +138,36 @@ export default function LoginForm({ providers }: { providers: Provider[] }) {
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-4 rounded-xl border border-neutral-200 p-6 shadow-sm dark:border-neutral-800"
+      className="space-y-4 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
     >
-      <div>
-        <label className={labelClass} htmlFor="email">
-          Email address
-        </label>
-        <input
-          id="email"
-          className={inputClass}
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => onEmailChange(e.target.value)}
-          required
-        />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className={labelClass} htmlFor="email">
+            Email address
+          </label>
+          <input
+            id="email"
+            className={inputClass}
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => onEmailChange(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label className={labelClass} htmlFor="label">
+            Name <span className="text-neutral-400">(optional)</span>
+          </label>
+          <input
+            id="label"
+            className={inputClass}
+            placeholder="Personal, Work…"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            maxLength={80}
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -272,9 +289,9 @@ export default function LoginForm({ providers }: { providers: Provider[] }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
+        className="w-full rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-500 disabled:opacity-60"
       >
-        {loading ? "Connecting…" : "Sign in"}
+        {loading ? "Checking login…" : "Add mailbox"}
       </button>
     </form>
   );

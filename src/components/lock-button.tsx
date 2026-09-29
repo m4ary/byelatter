@@ -14,7 +14,7 @@ export default function LockButton({ className = "" }: { className?: string }) {
   return (
     <button
       onClick={lock}
-      className={`rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900 ${className}`}
+      className={`whitespace-nowrap rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900 ${className}`}
     >
       Lock app
     </button>

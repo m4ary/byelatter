@@ -1,26 +1,43 @@
 import { NextResponse } from "next/server";
-import { requireAccount } from "@/lib/session";
+import { denyUnlessAdmin } from "@/lib/session";
+import { clearUnsubscribe, getAccount, getNewsletterMethods, recordUnsubscribe } from "@/lib/store";
 import { unsubscribe } from "@/lib/unsubscribe";
-import type { UnsubscribeMethods } from "@/lib/types";
+import type { UnsubscribeOutcome } from "@/lib/types";
 
-function stringList(value: unknown, prefix: RegExp): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((v): v is string => typeof v === "string" && prefix.test(v)).slice(0, 5);
-}
-
+/**
+ * Body: { accountId, address, action?: "unsubscribe" | "mark-done" | "reset" }.
+ * Unsubscribe links are read from the saved scan, never taken from the client.
+ */
 export async function POST(request: Request) {
-  const account = await requireAccount();
-  if (!account) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  const denied = await denyUnlessAdmin();
+  if (denied) return denied;
 
-  const body = (await request.json().catch(() => null)) as { unsubscribe?: Record<string, unknown> } | null;
-  const raw = body?.unsubscribe;
-  if (!raw) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const accountId = typeof body?.accountId === "string" ? body.accountId : "";
+  const address = typeof body?.address === "string" ? body.address : "";
+  const action = body?.action ?? "unsubscribe";
 
-  const methods: UnsubscribeMethods = {
-    urls: stringList(raw.urls, /^https?:\/\//i),
-    mailtos: stringList(raw.mailtos, /^mailto:/i),
-    oneClick: Boolean(raw.oneClick),
-  };
+  const methods = accountId && address ? getNewsletterMethods(accountId, address) : null;
+  if (!methods) return NextResponse.json({ error: "Newsletter not found" }, { status: 404 });
 
-  return NextResponse.json(await unsubscribe(account, methods));
+  if (action === "reset") {
+    clearUnsubscribe(accountId, address);
+    return NextResponse.json({ ok: true });
+  }
+
+  let outcome: UnsubscribeOutcome;
+  if (action === "mark-done") {
+    outcome = { status: "done", method: "manual", detail: "Marked as unsubscribed." };
+  } else {
+    try {
+      const account = getAccount(accountId);
+      if (!account) return NextResponse.json({ error: "Mailbox not found" }, { status: 404 });
+      outcome = await unsubscribe(account, methods);
+    } catch (err) {
+      outcome = { status: "failed", detail: (err as Error).message };
+    }
+  }
+
+  recordUnsubscribe(accountId, address, outcome);
+  return NextResponse.json(outcome);
 }

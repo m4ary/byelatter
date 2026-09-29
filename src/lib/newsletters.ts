@@ -10,9 +10,12 @@ export const WANTED_HEADERS = [
   "list-unsubscribe-post",
   "list-id",
   "precedence",
+  "message-id",
 ];
 
 export interface ParsedMessage {
+  messageId?: string;
+  folder: string;
   address: string;
   name: string;
   subject: string;
@@ -46,7 +49,7 @@ function headerText(headers: Map<string, unknown>, key: string): string {
  * Parse a raw header block. Returns null for messages that don't look like
  * newsletters (no List-Unsubscribe header).
  */
-export async function parseHeaderBlock(raw: string | Buffer): Promise<ParsedMessage | null> {
+export async function parseHeaderBlock(raw: string | Buffer, folder = "INBOX"): Promise<ParsedMessage | null> {
   const text = typeof raw === "string" ? raw : raw.toString("utf8");
   const parsed = await simpleParser(text.trimEnd() + "\r\n\r\n", {
     skipHtmlToText: true,
@@ -76,6 +79,8 @@ export async function parseHeaderBlock(raw: string | Buffer): Promise<ParsedMess
   const listId = listIdRaw.match(/<([^>]+)>/)?.[1] ?? (listIdRaw || undefined);
 
   return {
+    messageId: parsed.messageId,
+    folder,
     address,
     name: from?.name || address,
     subject: parsed.subject ?? headerText(parsed.headers, "subject"),
@@ -89,16 +94,27 @@ export async function parseHeaderBlock(raw: string | Buffer): Promise<ParsedMess
   };
 }
 
-/** Group parsed messages by sender; the newest message decides the unsubscribe method. */
+/**
+ * Group parsed messages by sender; the newest message decides the unsubscribe method.
+ * Messages seen in several folders (e.g. Gmail labels) are counted once by Message-ID.
+ */
 export function groupNewsletters(messages: ParsedMessage[]): Newsletter[] {
   const groups = new Map<string, Newsletter & { _ts: number }>();
+  const seen = new Set<string>();
 
   for (const msg of messages) {
+    if (msg.messageId) {
+      if (seen.has(msg.messageId)) {
+        const group = groups.get(msg.address);
+        if (group && !group.folders.includes(msg.folder)) group.folders.push(msg.folder);
+        continue;
+      }
+      seen.add(msg.messageId);
+    }
     const ts = msg.date?.getTime() ?? 0;
     const existing = groups.get(msg.address);
     if (!existing) {
       groups.set(msg.address, {
-        id: msg.address,
         name: msg.name,
         address: msg.address,
         listId: msg.listId,
@@ -106,11 +122,13 @@ export function groupNewsletters(messages: ParsedMessage[]): Newsletter[] {
         latestSubject: msg.subject,
         latestDate: msg.date?.toISOString() ?? null,
         unsubscribe: msg.unsubscribe,
+        folders: [msg.folder],
         _ts: ts,
       });
       continue;
     }
     existing.count += 1;
+    if (!existing.folders.includes(msg.folder)) existing.folders.push(msg.folder);
     if (ts >= existing._ts) {
       existing._ts = ts;
       existing.name = msg.name;

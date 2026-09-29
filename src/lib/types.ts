@@ -7,7 +7,7 @@ export interface ServerConfig {
   secure: boolean;
 }
 
-/** Everything needed to talk to a mailbox. Stored only inside the encrypted session cookie. */
+/** Everything needed to talk to a mailbox. Stored encrypted in the database. */
 export interface MailAccount {
   providerId: string;
   protocol: Protocol;
@@ -31,25 +31,70 @@ export interface UnsubscribeMethods {
 
 /** A sender that has sent the user list/bulk mail, aggregated over scanned messages. */
 export interface Newsletter {
-  /** Stable grouping key (sender address, lowercased) */
-  id: string;
-  name: string;
+  /** Sender address, lowercased */
   address: string;
+  name: string;
   listId?: string;
   count: number;
   latestSubject: string;
   latestDate: string | null;
   unsubscribe: UnsubscribeMethods;
+  folders: string[];
 }
 
-export interface ScanResult {
-  newsletters: Newsletter[];
-  scanned: number;
-  total: number;
-  mailbox: string;
-}
+export type ScanScope = "inbox" | "all";
 
 export type UnsubscribeOutcome =
-  | { status: "done"; method: "one-click" | "mailto"; detail: string }
+  | { status: "done"; method: "one-click" | "mailto" | "manual"; detail: string }
   | { status: "manual"; url: string; detail: string }
   | { status: "failed"; detail: string };
+
+/** Public view of a saved mailbox (no credentials). */
+export interface AccountSummary {
+  id: string;
+  label: string;
+  email: string;
+  providerId: string;
+  protocol: Protocol;
+  hasSmtp: boolean;
+  createdAt: string;
+  lastScanAt: string | null;
+  lastScanScope: ScanScope | null;
+  lastScanScanned: number | null;
+  lastError: string | null;
+  newsletterCount: number;
+  unsubscribedCount: number;
+}
+
+export interface ScanProgress {
+  state: "queued" | "scanning" | "done" | "error";
+  scope: ScanScope;
+  folder?: string;
+  folderIndex?: number;
+  folderCount?: number;
+  scanned: number;
+  error?: string;
+}
+
+export interface NewsletterRow extends Newsletter {
+  accountId: string;
+  accountLabel: string;
+  unsubscribeState: {
+    status: "done" | "manual" | "failed";
+    detail: string | null;
+    url: string | null;
+    updatedAt: string;
+  } | null;
+}
+
+export interface Overview {
+  accounts: AccountSummary[];
+  progress: Record<string, ScanProgress>;
+  newsletters: NewsletterRow[];
+  stats: {
+    mailboxes: number;
+    newsletters: number;
+    unsubscribed: number;
+    emails: number;
+  };
+}

@@ -9,10 +9,14 @@ services:
     environment:
       # Required: password for the app's own login page.
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env or your shell}
-      # Recommended: 32+ random characters (openssl rand -hex 32).
+      # Recommended: 32+ random characters (openssl rand -hex 32). Also encrypts saved
+      # mailbox passwords, so keep it stable or you'll need to re-add your mailboxes.
       SESSION_SECRET: ${SESSION_SECRET:-}
       # Set to "true" when served over HTTPS (e.g. behind a reverse proxy).
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    volumes:
+      # Mailboxes (credentials encrypted) and scan results.
+      - byeletter-data:/app/data
     # Lets the "Other" provider reach Proton Mail Bridge on the host via host.docker.internal.
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -23,3 +27,6 @@ services:
       start_period: 10s
       retries: 3
     restart: unless-stopped
+
+volumes:
+  byeletter-data:

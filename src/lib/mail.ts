@@ -1,11 +1,11 @@
 import "server-only";
-import { ImapFlow } from "imapflow";
+import { ImapFlow, type ListResponse } from "imapflow";
 import Pop3Command from "node-pop3";
 import { groupNewsletters, parseHeaderBlock, WANTED_HEADERS, type ParsedMessage } from "./newsletters";
-import type { MailAccount, ScanResult } from "./types";
+import type { MailAccount, Newsletter, ScanScope } from "./types";
 
 const TIMEOUT_MS = 30_000;
-export const MAX_SCAN = 2000;
+export const MAX_PER_FOLDER = 5000;
 
 function imapClient(account: MailAccount) {
   return new ImapFlow({
@@ -67,62 +67,108 @@ export async function verifyAccount(account: MailAccount): Promise<void> {
   }
 }
 
-export async function listMailboxes(account: MailAccount): Promise<string[]> {
-  if (account.protocol !== "imap") return ["INBOX"];
-  return withImap(account, async (client) => {
-    const boxes = await client.list();
-    return boxes
-      .filter((b) => !b.flags.has("\\Noselect"))
-      .map((b) => b.path)
-      .sort((a, b) => (a === "INBOX" ? -1 : b === "INBOX" ? 1 : a.localeCompare(b)));
-  });
+const SKIP_USES = new Set(["\\Sent", "\\Drafts"]);
+
+/**
+ * Folders to read for an "all folders" scan. Outgoing folders never hold newsletters.
+ * When the server exposes an \All folder (Gmail's "All Mail"), it already contains every
+ * other folder except Junk and Trash, so reading just those avoids scanning mail twice.
+ */
+export function pickFolders(boxes: ListResponse[]): string[] {
+  const selectable = boxes.filter((b) => !b.flags.has("\\Noselect") && !b.flags.has("\\NonExistent"));
+  const all = selectable.find((b) => b.specialUse === "\\All");
+  if (all) {
+    const extras = selectable.filter((b) => b.specialUse === "\\Junk" || b.specialUse === "\\Trash");
+    return [all.path, ...extras.map((b) => b.path)];
+  }
+  return selectable
+    .filter((b) => !(b.specialUse && SKIP_USES.has(b.specialUse)))
+    .map((b) => b.path)
+    .sort((a, b) => (a === "INBOX" ? -1 : b === "INBOX" ? 1 : a.localeCompare(b)));
 }
 
-/** Scan the newest `limit` messages and return senders that include List-Unsubscribe. */
-export async function scanNewsletters(
+export interface ScanUpdate {
+  folder: string;
+  folderIndex: number;
+  folderCount: number;
+  scanned: number;
+}
+
+export interface AccountScanResult {
+  newsletters: Newsletter[];
+  scanned: number;
+  folders: string[];
+}
+
+/** Scan the newest `limit` messages of each folder in scope and return senders with List-Unsubscribe. */
+export async function scanAccount(
   account: MailAccount,
-  opts: { limit: number; mailbox?: string },
-): Promise<ScanResult> {
-  const limit = Math.max(1, Math.min(opts.limit, MAX_SCAN));
+  opts: { scope: ScanScope; limit: number; onProgress?: (u: ScanUpdate) => void },
+): Promise<AccountScanResult> {
+  const limit = Math.max(1, Math.min(opts.limit, MAX_PER_FOLDER));
   return account.protocol === "imap"
-    ? scanImap(account, limit, opts.mailbox || "INBOX")
-    : scanPop3(account, limit);
+    ? scanImap(account, opts.scope, limit, opts.onProgress)
+    : scanPop3(account, limit, opts.onProgress);
 }
 
-async function scanImap(account: MailAccount, limit: number, mailbox: string): Promise<ScanResult> {
+async function scanImap(
+  account: MailAccount,
+  scope: ScanScope,
+  limit: number,
+  onProgress?: (u: ScanUpdate) => void,
+): Promise<AccountScanResult> {
   return withImap(account, async (client) => {
-    const box = await client.mailboxOpen(mailbox, { readOnly: true });
-    const total = box.exists;
-    if (total === 0) return { newsletters: [], scanned: 0, total, mailbox };
-
-    const start = Math.max(1, total - limit + 1);
+    const folders = scope === "all" ? pickFolders(await client.list()) : ["INBOX"];
     const parsed: ParsedMessage[] = [];
     let scanned = 0;
-    for await (const msg of client.fetch(`${start}:*`, { headers: WANTED_HEADERS })) {
-      scanned++;
-      if (!msg.headers) continue;
-      const result = await parseHeaderBlock(msg.headers).catch(() => null);
-      if (result) parsed.push(result);
+
+    for (const [i, folder] of folders.entries()) {
+      const report = () => onProgress?.({ folder, folderIndex: i + 1, folderCount: folders.length, scanned });
+      report();
+      let box;
+      try {
+        box = await client.mailboxOpen(folder, { readOnly: true });
+      } catch {
+        continue; // folder vanished or isn't selectable; skip it
+      }
+      if (box.exists === 0) continue;
+
+      const start = Math.max(1, box.exists - limit + 1);
+      for await (const msg of client.fetch(`${start}:*`, { headers: WANTED_HEADERS })) {
+        scanned++;
+        if (scanned % 50 === 0) report();
+        if (!msg.headers) continue;
+        const result = await parseHeaderBlock(msg.headers, folder).catch(() => null);
+        if (result) parsed.push(result);
+      }
+      report();
     }
-    return { newsletters: groupNewsletters(parsed), scanned, total, mailbox };
+    return { newsletters: groupNewsletters(parsed), scanned, folders };
   });
 }
 
-async function scanPop3(account: MailAccount, limit: number): Promise<ScanResult> {
+async function scanPop3(
+  account: MailAccount,
+  limit: number,
+  onProgress?: (u: ScanUpdate) => void,
+): Promise<AccountScanResult> {
   return withPop3(account, async (client) => {
     const stat = await client.STAT();
     const total = Number.parseInt(String(stat).trim().split(/\s+/)[0] ?? "0", 10) || 0;
     const parsed: ParsedMessage[] = [];
     let scanned = 0;
-    // POP3 numbers messages 1..N, oldest first; walk backwards from the newest.
+    const report = () => onProgress?.({ folder: "INBOX", folderIndex: 1, folderCount: 1, scanned });
+    // POP3 has a single mailbox numbered 1..N, oldest first; walk backwards from the newest.
     for (let n = total; n >= 1 && scanned < limit; n--) {
       scanned++;
+      if (scanned % 50 === 0) report();
       const headers = await client.TOP(n, 0);
       if (typeof headers !== "string") continue;
-      const result = await parseHeaderBlock(headers).catch(() => null);
+      const result = await parseHeaderBlock(headers, "INBOX").catch(() => null);
       if (result) parsed.push(result);
     }
-    return { newsletters: groupNewsletters(parsed), scanned, total, mailbox: "INBOX" };
+    report();
+    return { newsletters: groupNewsletters(parsed), scanned, folders: ["INBOX"] };
   });
 }
 
