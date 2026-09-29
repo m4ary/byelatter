@@ -1,4 +1,4 @@
-import { getProvider } from "./providers";
+import { getProvider, OUTLOOK_PROXY_ID } from "./providers";
 import type { MailAccount, Protocol, ServerConfig } from "./types";
 
 function parseServer(value: unknown): ServerConfig | undefined {
@@ -24,8 +24,16 @@ export function parseAccountInput(
   if (!email || !password || !provider) return { error: "Email, password and provider are required." };
 
   const isCustom = provider.id === "custom";
-  const incoming = isCustom ? parseServer(body.incoming) : provider[protocol];
-  const smtp = isCustom ? parseServer(body.smtp) : provider.smtp;
+  let incoming = isCustom ? parseServer(body.incoming) : provider[protocol];
+  let smtp = isCustom ? parseServer(body.smtp) : provider.smtp;
+
+  const isOutlookProxy = provider.id === OUTLOOK_PROXY_ID;
+  if (isOutlookProxy) {
+    // The proxy runs next to Byeletter; its host differs between Docker and local development.
+    const host = process.env.OUTLOOK_PROXY_HOST || "outlook-proxy";
+    incoming = incoming && { ...incoming, host };
+    smtp = smtp && { ...smtp, host };
+  }
 
   if (!incoming) {
     return {
@@ -41,7 +49,8 @@ export function parseAccountInput(
       providerId: provider.id,
       protocol,
       email,
-      username,
+      // The proxy identifies Microsoft accounts by email address.
+      username: isOutlookProxy ? email : username,
       password,
       incoming,
       smtp,

@@ -4,3 +4,7 @@ services:
   byeletter:
     image: byeletter:local
     build: .
+
+  outlook-proxy:
+    image: byeletter-outlook-proxy:local
+    build: ./outlook-proxy

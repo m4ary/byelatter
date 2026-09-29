@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Optional `outlook-proxy` container (Email OAuth 2.0 Proxy) and an "Outlook / Microsoft 365 (OAuth proxy)" provider, so Outlook works without an app password.
+
 ## [1.0.0] - 2026-09-29
 
 ### Added

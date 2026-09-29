@@ -1,5 +1,8 @@
 import type { ServerConfig } from "./types";
 
+/** Preset that talks to the outlook-proxy container (email-oauth2-proxy) instead of Microsoft directly. */
+export const OUTLOOK_PROXY_ID = "outlook-oauth";
+
 export interface Provider {
   id: string;
   name: string;
@@ -32,8 +35,19 @@ export const PROVIDERS: Provider[] = [
     imap: { host: "outlook.office365.com", port: 993, secure: true },
     pop3: { host: "outlook.office365.com", port: 995, secure: true },
     smtp: { host: "smtp.office365.com", port: 587, secure: false },
-    note: "Microsoft is phasing out password (basic) auth; it only works where your account or tenant still allows it.",
+    note: "Microsoft is phasing out password (basic) auth, so this only works where your account still allows it. No app password? Use “Outlook (OAuth proxy)” instead.",
     helpUrl: "https://support.microsoft.com/office/pop-imap-and-smtp-settings-for-outlook-com-d088b986-291d-42b8-9564-9c414e2aa040",
+  },
+  {
+    id: OUTLOOK_PROXY_ID,
+    name: "Outlook / Microsoft 365 (OAuth proxy)",
+    domains: [],
+    // Host is replaced server-side by OUTLOOK_PROXY_HOST (default: the compose service name).
+    imap: { host: "outlook-proxy", port: 1993, secure: false },
+    pop3: { host: "outlook-proxy", port: 1995, secure: false },
+    smtp: { host: "outlook-proxy", port: 1587, secure: false },
+    note: "Signs in with Microsoft OAuth through the bundled outlook-proxy container, so no app password is needed. Choose any password here (it protects the saved Microsoft token). The first time, run `docker compose logs -f outlook-proxy`, open the Microsoft link and enter the code within a few minutes.",
+    helpUrl: "https://github.com/m4ary/byeletter#outlook-without-an-app-password",
   },
   {
     id: "yahoo",

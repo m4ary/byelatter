@@ -28,5 +28,25 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Optional: Outlook / Microsoft 365 without an app password (OAuth via email-oauth2-proxy).
+  # Enable with COMPOSE_PROFILES=outlook in .env (or `docker compose --profile outlook up -d`),
+  # then add mailboxes with the "Outlook / Microsoft 365 (OAuth proxy)" provider.
+  outlook-proxy:
+    profiles: ["outlook"]
+    image: ghcr.io/m4ary/byeletter-outlook-proxy:${BYELETTER_VERSION:-latest}
+    container_name: byeletter-outlook-proxy
+    environment:
+      # Microsoft Entra app (client) ID with "Allow public client flows" enabled. See README.
+      OUTLOOK_CLIENT_ID: ${OUTLOOK_CLIENT_ID:-}
+      OUTLOOK_CLIENT_SECRET: ${OUTLOOK_CLIENT_SECRET:-}
+      # "common" (work + personal), "consumers" (personal only) or your tenant ID.
+      OUTLOOK_TENANT: ${OUTLOOK_TENANT:-common}
+    volumes:
+      # Encrypted OAuth tokens, so you only sign in once.
+      - outlook-proxy-data:/data
+    # No published ports: only Byeletter reaches it, over the internal compose network.
+    restart: unless-stopped
+
 volumes:
   byeletter-data:
+  outlook-proxy-data:

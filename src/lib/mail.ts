@@ -2,9 +2,19 @@ import "server-only";
 import { ImapFlow, type ListResponse } from "imapflow";
 import Pop3Command from "node-pop3";
 import { groupNewsletters, parseHeaderBlock, WANTED_HEADERS, type ParsedMessage } from "./newsletters";
+import { OUTLOOK_PROXY_ID } from "./providers";
 import type { MailAccount, Newsletter, ScanScope } from "./types";
 
 const TIMEOUT_MS = 30_000;
+/**
+ * The OAuth proxy holds the first login open until the Microsoft device sign-in is finished
+ * (the code is shown in its logs), so allow enough time to complete it.
+ */
+const OAUTH_SIGN_IN_MS = 10 * 60_000;
+
+const commandTimeout = (account: MailAccount) =>
+  account.providerId === OUTLOOK_PROXY_ID ? OAUTH_SIGN_IN_MS : TIMEOUT_MS * 4;
+
 export const MAX_PER_FOLDER = 5000;
 
 function imapClient(account: MailAccount) {
@@ -16,7 +26,7 @@ function imapClient(account: MailAccount) {
     logger: false,
     connectionTimeout: TIMEOUT_MS,
     greetingTimeout: TIMEOUT_MS,
-    socketTimeout: TIMEOUT_MS * 4,
+    socketTimeout: commandTimeout(account),
     tls: account.allowSelfSigned ? { rejectUnauthorized: false } : undefined,
   });
 }
@@ -28,7 +38,7 @@ function pop3Client(account: MailAccount) {
     tls: account.incoming.secure,
     user: account.username,
     password: account.password,
-    timeout: TIMEOUT_MS,
+    timeout: account.providerId === OUTLOOK_PROXY_ID ? OAUTH_SIGN_IN_MS : TIMEOUT_MS,
     tlsOptions: account.allowSelfSigned ? { rejectUnauthorized: false } : undefined,
   });
 }

@@ -82,8 +82,39 @@ Most big providers block your normal password for IMAP/POP. Create an **app pass
 | Gmail | Turn on 2-Step Verification, create an App Password, and enable IMAP/POP in Gmail settings |
 | Yahoo / AOL | Account Security → Generate app password |
 | iCloud | IMAP only; create an app-specific password at appleid.apple.com |
-| Outlook / Microsoft 365 | Microsoft is removing password (basic) auth, so this only works where your account still allows it |
+| Outlook / Microsoft 365 | Microsoft is removing password (basic) auth. If you can't use an app password, see [Outlook without an app password](#outlook-without-an-app-password) |
 | Proton Mail | Run Proton Mail Bridge on the same machine and use the password Bridge generates |
+
+## Outlook without an app password
+
+Outlook.com and Microsoft 365 are dropping password logins for IMAP, POP and SMTP. Byeletter ships an optional **`outlook-proxy`** container, built on [Email OAuth 2.0 Proxy](https://github.com/simonrob/email-oauth2-proxy). Byeletter logs in to the proxy with a normal password, and the proxy signs in to Microsoft with OAuth. It uses Microsoft's device sign-in, so you never type your Microsoft password into Byeletter.
+
+**1. Register a Microsoft app (one time).** In the [Microsoft Entra admin center](https://entra.microsoft.com), open **App registrations → New registration**:
+
+- **Supported account types:** "Accounts in any organizational directory and personal Microsoft accounts". Leave the redirect URI empty.
+- Open **Authentication**, set **Allow public client flows** to **Yes**, and save.
+- Optional: under **API permissions**, add the *Office 365 Exchange Online* delegated permissions `IMAP.AccessAsUser.All`, `POP.AccessAsUser.All` and `SMTP.Send`. Work accounts may need an admin to grant consent.
+- Copy the **Application (client) ID**.
+
+Registering an app needs an Entra directory. With a personal Microsoft account, the free Azure sign-up creates one for you.
+
+**2. Enable the proxy.** Add this to `.env`, then run `docker compose up -d`:
+
+```bash
+COMPOSE_PROFILES=outlook
+OUTLOOK_CLIENT_ID=<your application (client) id>
+# OUTLOOK_TENANT=common      # "consumers" for personal accounts only, or your tenant ID
+```
+
+**3. Add the mailbox.** In Byeletter, go to **Add mailbox** and pick **Outlook / Microsoft 365 (OAuth proxy)**. Use IMAP for all-folder scans, enter your email address, and **choose any password**. That password is only between Byeletter and the proxy, and it encrypts the saved Microsoft token. Click **Add mailbox**, then run:
+
+```bash
+docker compose logs -f outlook-proxy
+```
+
+Open the microsoft.com link it prints, enter the code, and approve access. The form finishes as soon as you're signed in (you have 10 minutes). After that the proxy refreshes the token by itself, so scans and email unsubscribes keep working.
+
+The proxy has no published ports; only Byeletter can reach it over the Compose network. Its tokens live in the `outlook-proxy-data` volume. To sign in again (for example after changing the password you chose), remove that volume. When running Byeletter outside Docker, set `OUTLOOK_PROXY_HOST` to where the proxy listens.
 
 ## Security notes
 
@@ -112,5 +143,6 @@ src/app/(app)            Dashboard, Mailboxes and Add mailbox pages
 src/app/api/*            Route handlers: unlock, lock, accounts, scan, overview, unsubscribe
 src/components/*         Dashboard, newsletter table, mailbox cards and forms (client components)
 Dockerfile               Multi-stage production image
+outlook-proxy/           Optional OAuth proxy image for Outlook / Microsoft 365
 .github/workflows        Docker image publishing and release automation
 ```

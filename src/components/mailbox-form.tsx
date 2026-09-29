@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import type { Provider } from "@/lib/providers";
+import { OUTLOOK_PROXY_ID, type Provider } from "@/lib/providers";
 import type { Protocol, ServerConfig } from "@/lib/types";
 
 const inputClass =
@@ -77,6 +77,7 @@ export default function MailboxForm({ providers }: { providers: Provider[] }) {
 
   const provider = providers.find((p) => p.id === providerId) ?? providers[providers.length - 1];
   const isCustom = provider.id === "custom";
+  const isOutlookProxy = provider.id === OUTLOOK_PROXY_ID;
   const supports = (p: Protocol) => isCustom || Boolean(provider[p]);
 
   function selectProvider(id: string) {
@@ -224,7 +225,7 @@ export default function MailboxForm({ providers }: { providers: Provider[] }) {
         </p>
       )}
 
-      {presetServer && (
+      {presetServer && !isOutlookProxy && (
         <p className="text-xs text-neutral-500">
           Connecting to <code>{presetServer.host}:{presetServer.port}</code>
           {presetServer.secure ? " over SSL/TLS" : " with STARTTLS"}
@@ -251,23 +252,25 @@ export default function MailboxForm({ providers }: { providers: Provider[] }) {
         </div>
       )}
 
-      <div>
-        <label className={labelClass} htmlFor="username">
-          Username <span className="text-neutral-400">(defaults to your email)</span>
-        </label>
-        <input
-          id="username"
-          className={inputClass}
-          autoComplete="username"
-          value={username}
-          placeholder={email}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-      </div>
+      {!isOutlookProxy && (
+        <div>
+          <label className={labelClass} htmlFor="username">
+            Username <span className="text-neutral-400">(defaults to your email)</span>
+          </label>
+          <input
+            id="username"
+            className={inputClass}
+            autoComplete="username"
+            value={username}
+            placeholder={email}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+        </div>
+      )}
 
       <div>
         <label className={labelClass} htmlFor="password">
-          Password / app password
+          {isOutlookProxy ? "Choose a password for the proxy" : "Password / app password"}
         </label>
         <input
           id="password"
@@ -279,6 +282,14 @@ export default function MailboxForm({ providers }: { providers: Provider[] }) {
           required
         />
       </div>
+
+      {loading && isOutlookProxy && (
+        <p className="rounded-md bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:bg-sky-950/40 dark:text-sky-200">
+          Waiting for Microsoft sign-in. Run <code>docker compose logs -f outlook-proxy</code>, open the
+          microsoft.com link it shows and enter the code. This page continues once you&apos;ve signed in (up to 10
+          minutes).
+        </p>
+      )}
 
       {error && (
         <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
