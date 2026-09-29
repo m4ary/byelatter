@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-29
+
 ### Added
 - Multiple mailboxes, saved in a SQLite database with AES-256-GCM encrypted credentials.
 - Dashboard with totals and a newsletter list across all mailboxes, filterable by mailbox and status.
