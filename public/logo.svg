@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" role="img" aria-labelledby="title">
+  <title id="title">Byelatter</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f43f5e"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="160" rx="36" fill="url(#bg)"/>
+  <!-- envelope -->
+  <rect x="30" y="50" width="84" height="60" rx="8" fill="#fff"/>
+  <path d="M34 56 L72 84 L110 56" fill="none" stroke="#7c3aed" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- "bye" badge: circle with an X -->
+  <circle cx="114" cy="108" r="24" fill="#111827" stroke="#fff" stroke-width="5"/>
+  <path d="M105 99 L123 117 M123 99 L105 117" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+</svg>

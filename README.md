@@ -1,4 +1,8 @@
-# Byelatter
+<p align="center">
+  <img src="public/logo.svg" alt="Byelatter logo" width="120" height="120">
+</p>
+
+<h1 align="center">Byelatter</h1>
 
 A small Next.js app that signs in to your mailbox over **IMAP** or **POP3**, finds every newsletter you receive, and unsubscribes you in one click.
 
