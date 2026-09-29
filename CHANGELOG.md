@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Optional `outlook-proxy` Compose service (Email OAuth 2.0 Proxy) and an "Outlook / Microsoft 365 (OAuth proxy)" provider, so Outlook works without an app password.
+
+### Changed
+- Releases are automatic: bumping the version in `package.json` on `main` publishes the image, tag and GitHub release.
+
 ## [1.0.0] - 2026-09-29
 
 ### Added
@@ -14,11 +20,9 @@ All notable changes to this project are documented here. The format follows
 - Scan every mailbox together, or one at a time; IMAP mailboxes can scan all folders.
 - Background scans with live progress; duplicates across folders are counted once by Message-ID.
 - Unsubscribe history is stored on the server, with "mark done" and undo.
-- Optional `outlook-proxy` container (Email OAuth 2.0 Proxy) and an "Outlook / Microsoft 365 (OAuth proxy)" provider, so Outlook works without an app password.
 
 ### Changed
 - The single-mailbox login is replaced by the Mailboxes page; the Docker image now uses a `/app/data` volume.
-- Releases are automatic: bumping the version in `package.json` on `main` publishes the images, tag and GitHub release.
 
 ## [0.1.0]
 

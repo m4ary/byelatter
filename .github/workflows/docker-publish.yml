@@ -2,7 +2,7 @@ name: Docker image
 
 # Releases are driven by the version in package.json:
 #   - push to main with a version that has no GitHub release yet
-#       -> build and push images (X.Y.Z, X.Y, X, latest), tag the commit vX.Y.Z, create the release
+#       -> build and push the image (X.Y.Z, X.Y, X, latest), tag the commit vX.Y.Z, create the release
 #   - any other push to main, or a pull request
 #       -> build only (nothing is pushed or tagged)
 on:
@@ -54,16 +54,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: app
-            suffix: ""
-            context: .
-          - name: outlook-proxy
-            suffix: -outlook-proxy
-            context: outlook-proxy
     env:
       RELEASE: ${{ needs.version.outputs.release }}
       VERSION: ${{ needs.version.outputs.version }}
@@ -73,7 +63,7 @@ jobs:
       - name: Image name
         run: |
           REPO="${GITHUB_REPOSITORY,,}"
-          echo "IMAGE=${REGISTRY}/${REPO}${{ matrix.suffix }}" >> "$GITHUB_ENV"
+          echo "IMAGE=${REGISTRY}/${REPO}" >> "$GITHUB_ENV"
 
       - uses: docker/setup-qemu-action@v3
         if: env.RELEASE == 'true'
@@ -102,14 +92,14 @@ jobs:
       - name: Build${{ env.RELEASE == 'true' && ' and push' || ' (check only)' }}
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
+          context: .
           # Releases are multi-arch; check-only builds use one platform to stay fast.
           platforms: ${{ env.RELEASE == 'true' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           push: ${{ env.RELEASE == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   release:
     needs: [version, build]
@@ -130,4 +120,4 @@ jobs:
           git push -f origin "refs/tags/$TAG"
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --verify-tag --generate-notes \
-            --notes "Docker images: \`$IMAGE:${TAG#v}\` and \`$IMAGE-outlook-proxy:${TAG#v}\`"
+            --notes "Docker image: \`$IMAGE:${TAG#v}\`"

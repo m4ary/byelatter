@@ -87,7 +87,7 @@ Most big providers block your normal password for IMAP/POP. Create an **app pass
 
 ## Outlook without an app password
 
-Outlook.com and Microsoft 365 are dropping password logins for IMAP, POP and SMTP. Byeletter ships an optional **`outlook-proxy`** container, built on [Email OAuth 2.0 Proxy](https://github.com/simonrob/email-oauth2-proxy). Byeletter logs in to the proxy with a normal password, and the proxy signs in to Microsoft with OAuth. It uses Microsoft's device sign-in, so you never type your Microsoft password into Byeletter.
+Outlook.com and Microsoft 365 are dropping password logins for IMAP, POP and SMTP. `docker-compose.yml` includes an optional **`outlook-proxy`** service that runs [Email OAuth 2.0 Proxy](https://github.com/simonrob/email-oauth2-proxy) from the community image [`blacktirion/email-oauth2-proxy-docker`](https://github.com/blacktirion/email-oauth2-proxy-docker), pinned to a specific version. Byeletter logs in to the proxy with a normal password, and the proxy signs in to Microsoft with OAuth. It uses Microsoft's device sign-in, so you never type your Microsoft password into Byeletter.
 
 **1. Register a Microsoft app (one time).** In the [Microsoft Entra admin center](https://entra.microsoft.com), open **App registrations → New registration**:
 
@@ -114,7 +114,7 @@ docker compose logs -f outlook-proxy
 
 Open the microsoft.com link it prints, enter the code, and approve access. The form finishes as soon as you're signed in (you have 10 minutes). After that the proxy refreshes the token by itself, so scans and email unsubscribes keep working.
 
-The proxy has no published ports; only Byeletter can reach it over the Compose network. Its tokens live in the `outlook-proxy-data` volume. To sign in again (for example after changing the password you chose), remove that volume. When running Byeletter outside Docker, set `OUTLOOK_PROXY_HOST` to where the proxy listens.
+Compose writes the proxy's config from these variables when the container starts. The proxy has no published ports; only Byeletter can reach it over the Compose network. Its tokens live in the `outlook-proxy-data` volume. To sign in again (for example after changing the password you chose), remove that volume. When running Byeletter outside Docker, set `OUTLOOK_PROXY_HOST` to where the proxy listens.
 
 ## Security notes
 
@@ -143,6 +143,5 @@ src/app/(app)            Dashboard, Mailboxes and Add mailbox pages
 src/app/api/*            Route handlers: unlock, lock, accounts, scan, overview, unsubscribe
 src/components/*         Dashboard, newsletter table, mailbox cards and forms (client components)
 Dockerfile               Multi-stage production image
-outlook-proxy/           Optional OAuth proxy image for Outlook / Microsoft 365
 .github/workflows        Docker image publishing and release automation
 ```

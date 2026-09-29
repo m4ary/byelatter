@@ -33,7 +33,8 @@ services:
   # then add mailboxes with the "Outlook / Microsoft 365 (OAuth proxy)" provider.
   outlook-proxy:
     profiles: ["outlook"]
-    image: ghcr.io/m4ary/byeletter-outlook-proxy:${BYELETTER_VERSION:-latest}
+    # Community image of https://github.com/simonrob/email-oauth2-proxy (proxy version 2026.7.3).
+    image: ghcr.io/blacktirion/email-oauth2-proxy-docker:2026.09.25.1
     container_name: byeletter-outlook-proxy
     environment:
       # Microsoft Entra app (client) ID with "Allow public client flows" enabled. See README.
@@ -42,8 +43,48 @@ services:
       # "common" (work + personal), "consumers" (personal only) or your tenant ID.
       OUTLOOK_TENANT: ${OUTLOOK_TENANT:-common}
     volumes:
-      # Encrypted OAuth tokens, so you only sign in once.
-      - outlook-proxy-data:/data
+      # Generated config and encrypted OAuth tokens, so you only sign in once.
+      - outlook-proxy-data:/config
+    # Write the proxy config from the variables above, then run the proxy in the foreground.
+    # Device sign-in: the Microsoft link and code appear in `docker compose logs -f outlook-proxy`.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        : "$${OUTLOOK_CLIENT_ID:?Set OUTLOOK_CLIENT_ID in .env - see the Byeletter README}"
+        TENANT="$${OUTLOOK_TENANT:-common}"
+        cat > /config/emailproxy.config <<EOF
+        [IMAP-1993]
+        server_address = outlook.office365.com
+        server_port = 993
+        local_address = 0.0.0.0
+
+        [POP-1995]
+        server_address = outlook.office365.com
+        server_port = 995
+        local_address = 0.0.0.0
+
+        [SMTP-1587]
+        server_address = smtp-mail.outlook.com
+        server_port = 587
+        server_starttls = True
+        local_address = 0.0.0.0
+
+        [@]
+        permission_url = https://login.microsoftonline.com/$$TENANT/oauth2/v2.0/devicecode
+        token_url = https://login.microsoftonline.com/$$TENANT/oauth2/v2.0/token
+        oauth2_scope = https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/POP.AccessAsUser.All https://outlook.office.com/SMTP.Send offline_access
+        oauth2_flow = device
+        client_id = $$OUTLOOK_CLIENT_ID
+        $${OUTLOOK_CLIENT_SECRET:+client_secret = $$OUTLOOK_CLIENT_SECRET}
+
+        [emailproxy]
+        delete_account_token_on_password_error = False
+        allow_catch_all_accounts = True
+        EOF
+        echo "Outlook OAuth proxy: IMAP :1993, POP :1995, SMTP :1587 (tenant: $$TENANT)"
+        exec python /app/emailproxy.py --no-gui --external-auth \
+          --config-file /config/emailproxy.config --cache-store /config/tokens.config
     # No published ports: only Byeletter reaches it, over the internal compose network.
     restart: unless-stopped
 
